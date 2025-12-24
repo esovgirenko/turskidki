@@ -1,0 +1,26 @@
+[Unit]
+Description=Tour Package Search Application
+Documentation=https://github.com/your-username/tour-package-search
+After=network.target
+
+[Service]
+Type=simple
+User=toursearch
+Group=toursearch
+WorkingDirectory=/home/toursearch/tour-package-search
+Environment="NODE_ENV=production"
+Environment="PATH=/usr/bin:/usr/local/bin"
+ExecStart=/usr/bin/node dist/index.js
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=toursearch
+
+# Ограничения ресурсов (опционально)
+LimitNOFILE=65536
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target
+

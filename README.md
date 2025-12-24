@@ -7,6 +7,7 @@ A production-grade web application for searching the best tour packages from Rus
 - **[USAGE_GUIDE.md](./USAGE_GUIDE.md)** - Подробная инструкция по использованию приложения
 - **[INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md)** - Руководство по интеграции с API туроператоров
 - **[API_PARAMETERS.md](./API_PARAMETERS.md)** - Справочник параметров подключения к API
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Подробное руководство по развертыванию на VPS
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Описание архитектуры приложения
 - **[QUICKSTART.md](./QUICKSTART.md)** - Быстрый старт
 
@@ -216,6 +217,479 @@ The application will be available at:
 - API: `http://localhost:3000/api`
 - Frontend: `http://localhost:3000/index.html`
 - Health Check: `http://localhost:3000/api/health`
+
+## Установка на продуктивный VPS
+
+### Требования к серверу
+
+- **ОС**: Ubuntu 20.04+ / Debian 11+ / CentOS 8+ (рекомендуется Ubuntu 22.04)
+- **RAM**: минимум 512 MB (рекомендуется 1 GB+)
+- **CPU**: 1 ядро (рекомендуется 2+)
+- **Диск**: минимум 2 GB свободного места
+- **Доступ**: SSH доступ с правами root или sudo
+
+### Шаг 1: Подготовка сервера
+
+#### 1.1. Обновление системы
+
+```bash
+# Ubuntu/Debian
+sudo apt update && sudo apt upgrade -y
+
+# CentOS/RHEL
+sudo yum update -y
+```
+
+#### 1.2. Установка Node.js 18+
+
+**Вариант A: Через NodeSource (рекомендуется)**
+
+```bash
+# Ubuntu/Debian
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Проверка установки
+node --version  # Должно быть >= 18.0.0
+npm --version
+```
+
+**Вариант B: Через nvm (для пользователя)**
+
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+source ~/.bashrc
+nvm install 18
+nvm use 18
+```
+
+#### 1.3. Установка дополнительных инструментов
+
+```bash
+# Ubuntu/Debian
+sudo apt install -y git build-essential
+
+# CentOS/RHEL
+sudo yum groupinstall -y "Development Tools"
+sudo yum install -y git
+```
+
+### Шаг 2: Установка приложения
+
+#### 2.1. Создание пользователя для приложения (рекомендуется)
+
+```bash
+# Создать пользователя
+sudo adduser --disabled-password --gecos "" toursearch
+sudo su - toursearch
+```
+
+#### 2.2. Клонирование репозитория
+
+```bash
+# Если используете Git
+git clone https://github.com/your-username/tour-package-search.git
+cd tour-package-search
+
+# Или загрузите файлы через SCP/SFTP
+```
+
+#### 2.3. Установка зависимостей
+
+```bash
+npm install --production
+```
+
+#### 2.4. Сборка проекта
+
+```bash
+npm run build
+```
+
+### Шаг 3: Настройка окружения
+
+#### 3.1. Создание файла `.env`
+
+```bash
+cp .env.example .env
+nano .env
+```
+
+#### 3.2. Настройка переменных окружения
+
+```env
+# Сервер
+PORT=3000
+NODE_ENV=production
+
+# API туроператора (замените на реальные значения)
+TOUR_API_BASE_URL=https://api.your-tour-operator.com/v1
+TOUR_API_KEY=your-api-key-here
+TOUR_API_SECRET=your-api-secret-here
+TOUR_API_TIMEOUT=30000
+TOUR_API_RETRY_ATTEMPTS=3
+
+# Приложение
+MAX_RESULTS_LIMIT=100
+DEFAULT_RESULTS_LIMIT=20
+```
+
+#### 3.3. Защита файла `.env`
+
+```bash
+chmod 600 .env
+chown toursearch:toursearch .env
+```
+
+### Шаг 4: Настройка systemd для автозапуска
+
+#### 4.1. Создание service файла
+
+```bash
+sudo nano /etc/systemd/system/toursearch.service
+```
+
+#### 4.2. Содержимое service файла
+
+```ini
+[Unit]
+Description=Tour Package Search Application
+After=network.target
+
+[Service]
+Type=simple
+User=toursearch
+WorkingDirectory=/home/toursearch/tour-package-search
+Environment="NODE_ENV=production"
+ExecStart=/usr/bin/node dist/index.js
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=toursearch
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**Примечание**: Замените `/home/toursearch/tour-package-search` на реальный путь к приложению.
+
+#### 4.3. Активация и запуск сервиса
+
+```bash
+# Перезагрузка systemd
+sudo systemctl daemon-reload
+
+# Включение автозапуска
+sudo systemctl enable toursearch
+
+# Запуск сервиса
+sudo systemctl start toursearch
+
+# Проверка статуса
+sudo systemctl status toursearch
+
+# Просмотр логов
+sudo journalctl -u toursearch -f
+```
+
+### Шаг 5: Настройка Nginx как reverse proxy
+
+#### 5.1. Установка Nginx
+
+```bash
+# Ubuntu/Debian
+sudo apt install -y nginx
+
+# CentOS/RHEL
+sudo yum install -y nginx
+```
+
+#### 5.2. Создание конфигурации
+
+```bash
+sudo nano /etc/nginx/sites-available/toursearch
+```
+
+**Для Ubuntu/Debian** (создайте симлинк):
+```bash
+sudo ln -s /etc/nginx/sites-available/toursearch /etc/nginx/sites-enabled/
+```
+
+**Для CentOS/RHEL** (создайте в `/etc/nginx/conf.d/toursearch.conf`)
+
+#### 5.3. Конфигурация Nginx
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com www.your-domain.com;
+
+    # Логи
+    access_log /var/log/nginx/toursearch-access.log;
+    error_log /var/log/nginx/toursearch-error.log;
+
+    # Увеличение размера тела запроса (если нужно)
+    client_max_body_size 10M;
+
+    # Проксирование на Node.js приложение
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        
+        # Таймауты
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    # Кэширование статических файлов
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
+        proxy_pass http://localhost:3000;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+}
+```
+
+#### 5.4. Проверка и перезапуск Nginx
+
+```bash
+# Проверка конфигурации
+sudo nginx -t
+
+# Перезапуск Nginx
+sudo systemctl restart nginx
+
+# Включение автозапуска
+sudo systemctl enable nginx
+```
+
+### Шаг 6: Настройка SSL сертификата (Let's Encrypt)
+
+#### 6.1. Установка Certbot
+
+```bash
+# Ubuntu/Debian
+sudo apt install -y certbot python3-certbot-nginx
+
+# CentOS/RHEL
+sudo yum install -y certbot python3-certbot-nginx
+```
+
+#### 6.2. Получение SSL сертификата
+
+```bash
+sudo certbot --nginx -d your-domain.com -d www.your-domain.com
+```
+
+Certbot автоматически:
+- Получит сертификат
+- Настроит Nginx для HTTPS
+- Настроит автоматическое обновление
+
+#### 6.3. Проверка автообновления
+
+```bash
+sudo certbot renew --dry-run
+```
+
+### Шаг 7: Настройка файрвола
+
+#### 7.1. UFW (Ubuntu/Debian)
+
+```bash
+sudo ufw allow OpenSSH
+sudo ufw allow 'Nginx Full'
+sudo ufw enable
+sudo ufw status
+```
+
+#### 7.2. firewalld (CentOS/RHEL)
+
+```bash
+sudo firewall-cmd --permanent --add-service=ssh
+sudo firewall-cmd --permanent --add-service=http
+sudo firewall-cmd --permanent --add-service=https
+sudo firewall-cmd --reload
+```
+
+### Шаг 8: Мониторинг и логирование
+
+#### 8.1. Просмотр логов приложения
+
+```bash
+# Systemd логи
+sudo journalctl -u toursearch -f
+
+# Последние 100 строк
+sudo journalctl -u toursearch -n 100
+
+# Логи за сегодня
+sudo journalctl -u toursearch --since today
+```
+
+#### 8.2. Просмотр логов Nginx
+
+```bash
+# Access лог
+sudo tail -f /var/log/nginx/toursearch-access.log
+
+# Error лог
+sudo tail -f /var/log/nginx/toursearch-error.log
+```
+
+#### 8.3. Проверка статуса сервисов
+
+```bash
+# Статус приложения
+sudo systemctl status toursearch
+
+# Статус Nginx
+sudo systemctl status nginx
+
+# Проверка портов
+sudo netstat -tlnp | grep :3000
+sudo netstat -tlnp | grep :80
+sudo netstat -tlnp | grep :443
+```
+
+### Шаг 9: Обновление приложения
+
+#### 9.1. Процесс обновления
+
+```bash
+# Перейти в директорию приложения
+cd /home/toursearch/tour-package-search
+
+# Остановить сервис
+sudo systemctl stop toursearch
+
+# Обновить код (если используете Git)
+git pull origin main
+
+# Установить зависимости
+npm install --production
+
+# Пересобрать проект
+npm run build
+
+# Запустить сервис
+sudo systemctl start toursearch
+
+# Проверить статус
+sudo systemctl status toursearch
+```
+
+### Шаг 10: Резервное копирование
+
+#### 10.1. Создание скрипта бэкапа
+
+```bash
+sudo nano /usr/local/bin/backup-toursearch.sh
+```
+
+```bash
+#!/bin/bash
+BACKUP_DIR="/backup/toursearch"
+DATE=$(date +%Y%m%d_%H%M%S)
+APP_DIR="/home/toursearch/tour-package-search"
+
+mkdir -p $BACKUP_DIR
+
+# Бэкап кода
+tar -czf $BACKUP_DIR/code_$DATE.tar.gz -C $APP_DIR .
+
+# Бэкап .env (если нужно)
+cp $APP_DIR/.env $BACKUP_DIR/env_$DATE
+
+# Удаление старых бэкапов (старше 7 дней)
+find $BACKUP_DIR -type f -mtime +7 -delete
+
+echo "Backup completed: $DATE"
+```
+
+```bash
+sudo chmod +x /usr/local/bin/backup-toursearch.sh
+```
+
+#### 10.2. Настройка cron для автоматического бэкапа
+
+```bash
+sudo crontab -e
+```
+
+Добавьте строку (бэкап каждый день в 2:00):
+```
+0 2 * * * /usr/local/bin/backup-toursearch.sh
+```
+
+### Полезные команды
+
+```bash
+# Перезапуск приложения
+sudo systemctl restart toursearch
+
+# Остановка приложения
+sudo systemctl stop toursearch
+
+# Запуск приложения
+sudo systemctl start toursearch
+
+# Просмотр логов в реальном времени
+sudo journalctl -u toursearch -f
+
+# Проверка использования ресурсов
+top -p $(pgrep -f "node dist/index.js")
+
+# Проверка доступности API
+curl http://localhost:3000/api/health
+curl https://your-domain.com/api/health
+```
+
+### Устранение неполадок
+
+#### Приложение не запускается
+
+1. Проверьте логи: `sudo journalctl -u toursearch -n 50`
+2. Проверьте `.env` файл: `cat .env`
+3. Проверьте права доступа: `ls -la`
+4. Проверьте порт: `sudo netstat -tlnp | grep 3000`
+
+#### Nginx возвращает 502 Bad Gateway
+
+1. Проверьте, что приложение запущено: `sudo systemctl status toursearch`
+2. Проверьте, что порт 3000 открыт: `curl http://localhost:3000/api/health`
+3. Проверьте логи Nginx: `sudo tail -f /var/log/nginx/toursearch-error.log`
+
+#### SSL сертификат не работает
+
+1. Проверьте DNS записи для домена
+2. Проверьте, что порты 80 и 443 открыты в файрволе
+3. Перезапустите Nginx: `sudo systemctl restart nginx`
+
+### Рекомендации по безопасности
+
+1. **Регулярные обновления**: `sudo apt update && sudo apt upgrade -y`
+2. **Fail2ban**: Установите для защиты от брутфорса
+3. **Ограничение SSH**: Используйте ключи вместо паролей
+4. **Мониторинг**: Настройте мониторинг (например, UptimeRobot)
+5. **Логирование**: Регулярно проверяйте логи на подозрительную активность
+
+### Дополнительные улучшения
+
+- **PM2**: Альтернатива systemd для управления процессами Node.js
+- **Docker**: Контейнеризация приложения
+- **Load Balancer**: Для высокой нагрузки
+- **CDN**: Для статических файлов
+- **Database**: Для кэширования популярных запросов
 
 ## Интеграция с реальными API туроператоров
 
