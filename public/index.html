@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tour Package Search</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .children-section {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 6px;
+        }
+
+        .child-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .child-item input {
+            flex: 1;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            font-size: 14px;
+            padding: 8px 16px;
+            width: auto;
+        }
+
+        .results {
+            margin-top: 30px;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .results-count {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .tour-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: box-shadow 0.3s;
+        }
+
+        .tour-card:hover {
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .tour-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+
+        .tour-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .tour-price {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .tour-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .tour-detail {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tour-detail-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .tour-detail-value {
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .error {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .tour-header {
+                flex-direction: column;
+            }
+
+            .tour-price {
+                margin-top: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌴 Tour Package Search</h1>
+            <p>Find the best tour packages from Russian tour operators</p>
+        </div>
+
+        <div class="card">
+            <form id="searchForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="departureCity">Departure City *</label>
+                        <input type="text" id="departureCity" name="departureCity" required 
+                               placeholder="e.g., Moscow" value="Moscow">
+                    </div>
+                    <div class="form-group">
+                        <label for="destinationCountry">Destination Country *</label>
+                        <input type="text" id="destinationCountry" name="destinationCountry" required 
+                               placeholder="e.g., Turkey" value="Turkey">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="destinationRegion">Destination Region *</label>
+                        <input type="text" id="destinationRegion" name="destinationRegion" required 
+                               placeholder="e.g., Antalya" value="Antalya">
+                    </div>
+                    <div class="form-group">
+                        <label for="hotelFilterType">Hotel Filter *</label>
+                        <select id="hotelFilterType" name="hotelFilterType" required>
+                            <option value="all">All Hotels</option>
+                            <option value="single">Specific Hotel</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group" id="hotelNameGroup" style="display: none;">
+                    <label for="hotelName">Hotel Name *</label>
+                    <input type="text" id="hotelName" name="hotelName" 
+                           placeholder="e.g., Grand Antalya Resort">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="departureDate">Departure Date *</label>
+                        <input type="date" id="departureDate" name="departureDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="nights">Number of Nights *</label>
+                        <input type="number" id="nights" name="nights" required min="1" value="7">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="adults">Number of Adults *</label>
+                        <input type="number" id="adults" name="adults" required min="1" value="2">
+                    </div>
+                    <div class="form-group">
+                        <label>Children</label>
+                        <div class="children-section">
+                            <div id="childrenContainer"></div>
+                            <button type="button" class="btn btn-secondary" onclick="addChild()">+ Add Child</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="limit">Results Limit</label>
+                    <input type="number" id="limit" name="limit" min="1" max="100" value="20">
+                </div>
+
+                <button type="submit" class="btn" id="searchBtn">Search Tours</button>
+            </form>
+        </div>
+
+        <div id="errorContainer"></div>
+        <div id="resultsContainer"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
